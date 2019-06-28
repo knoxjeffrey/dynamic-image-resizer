@@ -1,0 +1,5 @@
+.webpack
+node_modules/
+secrets/secrets.env
+secrets/secrets.json
+yarn-error.log

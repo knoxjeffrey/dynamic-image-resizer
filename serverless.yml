@@ -1,0 +1,178 @@
+custom:
+  serviceName: dynamic-image-resizer
+  stackName: dynamic-image-resizer-stack
+  stage: ${opt:stage, self:custom.defaultStage}
+  bucket: serverless-dynamic-image-resizer
+  webpack:
+    includeModules:
+      forceExclude:
+        - aws-sdk
+  defaultStage: dev
+  stages:
+    - ${opt:stage}
+    - dev
+    - integration
+    - production
+    
+service:
+  name: ${self:custom.serviceName}
+
+plugins:
+  - serverless-offline
+  - serverless-webpack
+  - '@silvermine/serverless-plugin-cloudfront-lambda-edge'
+
+provider:
+  name: aws
+  runtime: nodejs8.10
+  profile: serverless-profile
+  stackName: '${self:custom.stackName}'
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - "s3:GetObject"
+      Resource: 'arn:aws:s3:::${self:custom.bucket}/*'
+    - Effect: "Allow"
+      Principal: "*"
+      Action:
+        - "s3:PutObject"
+      Resource: 'arn:aws:s3:::${self:custom.bucket}/*'
+    - Effect: "Allow"
+      Principal: "*"
+      Action:
+        - "s3:GetObject"
+      Resource: 'arn:aws:s3:::${self:custom.bucket}/*'
+      
+  # usagePlan:
+  #   quota:
+  #     limit: 100
+  #     offset: 2
+  #     period: MONTH
+  #   throttle:
+  #     burstLimit: 100
+  #     rateLimit: 50
+
+functions:
+  requestUriManipulator:
+    name: '${self:custom.bucket}-request-uri-manipulator'
+    handler: src/handlers/requestUriManipulator.handler
+    memorySize: 128
+    timeout: 1
+    role: EdgeLambdaRole
+    lambdaAtEdge:
+      distribution: 'MyDistribution'
+      eventType: 'viewer-request'
+  triggerResizer:
+    name: '${self:custom.bucket}-trigger-resizer'
+    handler: src/handlers/triggerResizer.handler
+    memorySize: 512
+    timeout: 5
+    role: EdgeLambdaRole
+    environment:
+      BUCKET: '${self:custom.bucket}'
+    lambdaAtEdge:
+      distribution: 'MyDistribution'
+      eventType: 'origin-response'
+
+package:
+  individually: 'true'
+  exclude:
+    - layer/**
+    - node_modules/**
+    - '!node_modules/babel-runtime/**'
+    - '!node_modules/sharp/**'
+
+# layers:
+#   imageLibs:
+#     path: layer
+#     compatibleRuntimes:
+#       - nodejs8.10
+
+resources:
+  Resources:
+    ImageBucket:
+      Type: AWS::S3::Bucket
+      DeletionPolicy: Retain
+      Properties:
+        AccessControl: PublicRead
+        BucketName: '${self:custom.bucket}'
+
+    ImageBucketPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket:
+          Ref: ImageBucket
+        PolicyDocument:
+          Statement:
+              - Action:
+                  - s3:GetObject
+                Effect: Allow
+                Principal: "*"
+                Resource: 'arn:aws:s3:::${self:custom.bucket}/*'
+              - Action:
+                  - s3:PutObject
+                Effect: Allow
+                Principal: "*"
+                Resource: 'arn:aws:s3:::${self:custom.bucket}/*'
+              - Action:
+                  - s3:GetObject
+                Effect: Allow
+                Principal: "*"
+                Resource: 'arn:aws:s3:::${self:custom.bucket}/*'
+            
+    EdgeLambdaRole:
+      Type: "AWS::IAM::Role"
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+                - "edgelambda.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+        Path: "/service-role/"
+        ManagedPolicyArns:
+          - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+          
+    MyDistribution:
+      Type: AWS::CloudFront::Distribution
+      Properties:
+        DistributionConfig:
+          Origins:
+          - DomainName: '${self:custom.bucket}.s3.amazonaws.com'
+            Id: myS3Origin
+            S3OriginConfig: {}
+          Enabled: 'true'
+          Comment: distribution for content delivery
+          DefaultRootObject: index.html
+          DefaultCacheBehavior:
+            TargetOriginId: myS3Origin
+            ForwardedValues:
+              QueryString: 'true'
+              QueryStringCacheKeys:
+                - d
+              Cookies:
+                Forward: 'none'
+            ViewerProtocolPolicy: allow-all
+            MinTTL: '100'
+            SmoothStreaming: 'false'
+            Compress: 'true'
+          PriceClass: PriceClass_All
+          ViewerCertificate:
+            CloudFrontDefaultCertificate: 'true'
+
+  Outputs:
+    ImageBucket:
+      Value:
+        Ref: ImageBucket
+      Export:
+        Name: '${self:custom.stackName}-ImageBucket'
+
+    MyDistribution:
+      Value:
+        Ref: MyDistribution
+      Export:
+        Name: '${self:custom.stackName}-MyDistribution'
