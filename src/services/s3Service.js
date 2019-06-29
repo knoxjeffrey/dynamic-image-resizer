@@ -1,12 +1,14 @@
-import * as AWS from 'aws-sdk'
+"use strict";
+
+import * as AWS from "aws-sdk"
 
 const S3 = new AWS.S3({
-  signatureVersion: 'v4',
+  signatureVersion: "v4",
 });
 // const BUCKET = process.env.BUCKET;
 const BUCKET = "serverless-dynamic-image-resizer"
 
-class S3Handler {
+class S3Service {
   constructor() { }
 
   getObject({ Key }) {
@@ -18,13 +20,13 @@ class S3Handler {
       S3.putObject({
         Body,
         Bucket: BUCKET,
-        ContentType: 'image/' + format,
-        CacheControl: 'max-age=31536000',
+        ContentType: "image/" + format,
+        CacheControl: "max-age=31536000",
         Key,
-        StorageClass: 'STANDARD'
+        StorageClass: "STANDARD"
       })
     )
   }
 }
 
-export const s3Handler = new S3Handler()
+export const s3Service = new S3Service()

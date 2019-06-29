@@ -1,6 +1,8 @@
-const Sharp = require('sharp');
+"use strict";
 
-class SharpHandler {
+const Sharp = require("sharp");
+
+class SharpService {
   constructor() { }
 
   resizeImage({ body, width, height, format }) {
@@ -13,4 +15,4 @@ class SharpHandler {
   }
 }
 
-export const sharpHandler = new SharpHandler()
+export const sharpService = new SharpService()

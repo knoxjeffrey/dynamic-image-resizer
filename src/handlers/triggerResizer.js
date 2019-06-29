@@ -1,11 +1,11 @@
-'use strict';
+"use strict";
 
-import http from 'http'
-import https from 'https'
-const querystring = require('querystring');
+import http from "http"
+import https from "https"
+const querystring = require("querystring");
 
-import { s3Handler } from '../s3/s3Handler'
-import { sharpHandler } from '../sharp/sharpHandler'
+import { s3Service } from "../services/s3Service"
+import { sharpService } from "../services/sharpService"
 
 exports.handler = (event, context, callback) => {
   let response = event.Records[0].cf.response;
@@ -64,21 +64,21 @@ exports.handler = (event, context, callback) => {
     }
 
     // get the source image file
-    s3Handler.getObject({ Key: originalKey }).promise()
+    s3Service.getObject({ Key: originalKey }).promise()
       // then perform the resize operation
-      .then(data => sharpHandler.resizeImage({ body: data.Body, width, height, format }))
+      .then(data => sharpService.resizeImage({ body: data.Body, width, height, format }))
       .then(buffer => {
         // save the resized object to S3 bucket with appropriate object key.
-        s3Handler.putObject({ Body: buffer, format, Key: key }).promise()
+        s3Service.putObject({ Body: buffer, format, Key: key }).promise()
         // even if there is exception in saving the object we send back the generated
         // image back to viewer below
         .catch(() => { console.log("Exception while writing resized image to bucket")});
 
         // generate a binary response with resized image
         response.status = 200;
-        response.body = buffer.toString('base64');
-        response.bodyEncoding = 'base64';
-        response.headers['content-type'] = [{ key: 'Content-Type', value: 'image/' + format }];
+        response.body = buffer.toString("base64");
+        response.bodyEncoding = "base64";
+        response.headers["content-type"] = [{ key: "Content-Type", value: "image/" + format }];
         callback(null, response);
       })
     .catch( err => {
