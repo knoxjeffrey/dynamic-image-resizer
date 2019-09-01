@@ -1,28 +1,25 @@
 "use strict";
 
-class StringManipulatorService {
+class ImageSizingService {
   constructor() { }
 
   requestUri({ headers, params, fwdUri }) {
     // defines the allowed dimensions, default dimensions and how much variance from allowed
     // dimension is allowed.
     const variables = {
-      allowedDimension : [ {w:100,h:100}, {w:200,h:200}, {w:300,h:300}, {w:400,h:400} ],
-      defaultDimension : {w:200,h:200},
+      // allowedDimension : [ {w:100,h:100}, {w:200,h:200}, {w:300,h:300}, {w:400,h:400} ],
+      // defaultDimension : {w:200,h:200},
+      allowedWidths : [ 360, 720, 960, 1960 ],
+      defaultWidth : 960,
       variance: 20,
       webpExtension: "webp"
     };
-    
-    // read the dimension parameter value = width x height and split it by 'x'
-    const dimensionMatch = params.d.split("x");
 
-    // set the width and height parameters
-    let width = dimensionMatch[0];
-    let height = dimensionMatch[1];
+    // read the width parameter value
+    let width = params.w;
 
     // parse the prefix, image name and extension from the uri.
-    // In our case /images/image.jpg
-
+    // In this case /images/image.jpg
     const match = fwdUri.match(/(.*)\/(.*)\.(.*)/);
 
     let prefix = match[1];
@@ -36,12 +33,11 @@ class StringManipulatorService {
     // range, then in our case, the dimension would be corrected to 100.
     let variancePercent = (variables.variance/100);
 
-    for (let dimension of variables.allowedDimension) {
-      let minWidth = dimension.w - (dimension.w * variancePercent);
-      let maxWidth = dimension.w + (dimension.w * variancePercent);
+    for (let width of variables.allowedWidths) {
+      let minWidth = width - (width * variancePercent);
+      let maxWidth = width + (width * variancePercent);
       if(width >= minWidth && width <= maxWidth){
-        width = dimension.w;
-        height = dimension.h;
+        width = width;
         matchFound = true;
         break;
       }
@@ -49,18 +45,16 @@ class StringManipulatorService {
     // if no match is found from allowed dimension with variance then set to default
     //dimensions.
     if(!matchFound){
-      width = variables.defaultDimension.w;
-      height = variables.defaultDimension.h;
+      width = variables.defaultWidth;
     }
-
-    // read the accept header to determine if webP is supported.
-    let accept = headers["accept"]?headers["accept"][0].value:"";
 
     let url = [];
     // build the new uri to be forwarded upstream
     url.push(prefix);
-    url.push(width+"x"+height);
+    url.push(width);
 
+    // read the accept header.
+    let accept = headers["accept"]?headers["accept"][0].value:"";
     // check support for webp
     if (accept.includes(variables.webpExtension)) {
       url.push(variables.webpExtension);
@@ -74,4 +68,4 @@ class StringManipulatorService {
   }
 }
 
-export const stringManipulatorService = new StringManipulatorService()
+export const imageSizingService = new ImageSizingService()

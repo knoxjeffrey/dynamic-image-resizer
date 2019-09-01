@@ -1,7 +1,7 @@
 "use strict";
 
 const querystring = require("querystring");
-import { stringManipulatorService } from "../services/stringManipulatorService"
+import { imageSizingService } from "../services/imageSizingService"
 
 exports.handler = (event, context, callback) => {
   const request = event.Records[0].cf.request;
@@ -14,12 +14,12 @@ exports.handler = (event, context, callback) => {
   let fwdUri = request.uri;
 
   // if there is no dimension attribute, just pass the request
-  if(!params.d){
+  if(!params.w){
     callback(null, request);
     return;
   }
 
-  // final modified url is of format /images/200x200/webp/image.jpg
-  request.uri = stringManipulatorService.requestUri({ headers, params, fwdUri });
+  // final modified url is of format /images/960/webp/image.jpg
+  request.uri = imageSizingService.requestUri({ headers, params, fwdUri });
   callback(null, request);
 };

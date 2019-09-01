@@ -19,36 +19,35 @@ exports.handler = (event, context, callback) => {
     let params = querystring.parse(request.querystring);
 
     // if there is no dimension attribute, just pass the response
-    if (!params.d) {
+    if (!params.w) {
       callback(null, response);
       return;
     }
 
-    // read the dimension parameter value = width x height and split it by 'x'
-    let dimensionMatch = params.d.split("x");
+    // read the width parameter
+    let dimensionMatch = params.w
 
-    // read the required path. Ex: uri /images/100x100/webp/image.jpg
+    // read the required path. Ex: uri /images/960/webp/image.jpg
     let path = request.uri;
 
     // read the S3 key from the path variable.
-    // Ex: path variable /images/100x100/webp/image.jpg
+    // Ex: path variable /images/960/webp/image.jpg
     let key = path.substring(1);
 
     // parse the prefix, width, height and image name
-    // Ex: key=images/200x200/webp/image.jpg
-    let prefix, originalKey, match, width, height, format, imageName;
+    // Ex: key=images/960/webp/image.jpg
+    let prefix, originalKey, match, height, format, imageName;
     let startIndex;
 
     try {
       match = key.match(/(.*)\/(\d+)x(\d+)\/(.*)\/(.*)/);
       prefix = match[1];
-      width = parseInt(match[2], 10);
-      height = parseInt(match[3], 10);
+      width = parseInt(match[2]);
 
       // correction for jpg required for 'Sharp'
       format = match[4] == "jpg" ? "jpeg" : match[4];
       imageName = match[5];
-      originalKey = prefix + "/" + imageName;
+      originalKey = "original-images/" + imageName;
     }
     catch (err) {
       // no prefix exist for image..
@@ -58,7 +57,7 @@ exports.handler = (event, context, callback) => {
       height = parseInt(match[2], 10);
 
       // correction for jpg required for 'Sharp'
-      format = match[3] == "jpg" ? "jpeg" : match[3]; 
+      format = match[3] == "jpg" ? "jpeg" : match[3];
       imageName = match[4];
       originalKey = imageName;
     }
